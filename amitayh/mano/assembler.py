@@ -1,5 +1,6 @@
 class Assembler(object):
 
+    # Memory reference
     mri = {
         'AND': 0x0000,
         'ADD': 0x1000,
@@ -10,6 +11,7 @@ class Assembler(object):
         'ISZ': 0x6000
     }
 
+    # Register reference
     rri = {
         'CLA': 0x7800,
         'CLE': 0x7400,
@@ -25,6 +27,7 @@ class Assembler(object):
         'HLT': 0x7001
     }
 
+    # Input / output
     io = {
         'INP': 0xF800,
         'OUT': 0xF400,
@@ -46,9 +49,6 @@ class Assembler(object):
                 location = hex_to_int(operand)
                 continue
 
-            elif command == 'END':
-                break
-
             if label:
                 table[label] = location
 
@@ -62,9 +62,6 @@ class Assembler(object):
             if command == 'ORG':
                 location = hex_to_int(operand)
                 continue
-
-            elif command == 'END':
-                break
 
             elif command == 'HEX':
                 instruction = hex_to_int(operand)
@@ -84,7 +81,7 @@ class Assembler(object):
                 instruction = self.io[command]
 
             else:
-                raise SyntaxError("Unrecognized command: '" + str(command) + "'")
+                raise SyntaxError("Unrecognized command: '%s'" % command)
 
             memory.write(location, instruction)
             location += 1
@@ -92,8 +89,14 @@ class Assembler(object):
     def lines(self):
         for line in self.program.split('\n'):
             line = line.strip()
+
             if line == '':
+                # Skip empty lines
                 continue
+
+            if line == 'END':
+                # End of program
+                break
 
             yield self.parse_line(line)
 
