@@ -1,5 +1,4 @@
 class Assembler(object):
-
     # Memory reference
     mri = {
         'AND': 0x0000,
@@ -58,9 +57,12 @@ class Assembler(object):
 
     def load(self, memory):
         location = 0
+        program_start = None
         for (label, command, operand, indirect) in self.lines():
             if command == 'ORG':
                 location = hex_to_int(operand)
+                if program_start is None:
+                    program_start = location
                 continue
 
             elif command == 'HEX':
@@ -85,6 +87,8 @@ class Assembler(object):
 
             memory.write(location, instruction)
             location += 1
+
+        return program_start
 
     def lines(self):
         for line in self.program.split('\n'):
@@ -117,6 +121,7 @@ class Assembler(object):
             indirect = (parts and parts[0] == 'I')
 
         return label, command, operand, indirect
+
 
 def hex_to_int(address):
     return int(address, 16)

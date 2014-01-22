@@ -6,7 +6,7 @@ from amitayh.mano.computer import Memory
 class TestAssembler(TestCase):
     def test_assemble_rri_commands(self):
         program = """
-            ORG 100
+            ORG 0
             CLA
             CLE
             CMA
@@ -24,20 +24,21 @@ class TestAssembler(TestCase):
         memory = Memory(1024 * 4)
 
         assembler = Assembler(program)
-        assembler.load(memory)
+        program_start = assembler.load(memory)
 
-        self.assertEquals(0x7800, memory.read(0x100))
-        self.assertEquals(0x7400, memory.read(0x101))
-        self.assertEquals(0x7200, memory.read(0x102))
-        self.assertEquals(0x7100, memory.read(0x103))
-        self.assertEquals(0x7080, memory.read(0x104))
-        self.assertEquals(0x7040, memory.read(0x105))
-        self.assertEquals(0x7020, memory.read(0x106))
-        self.assertEquals(0x7010, memory.read(0x107))
-        self.assertEquals(0x7008, memory.read(0x108))
-        self.assertEquals(0x7004, memory.read(0x109))
-        self.assertEquals(0x7002, memory.read(0x10A))
-        self.assertEquals(0x7001, memory.read(0x10B))
+        self.assertEquals(0, program_start)
+        self.assertEquals(0x7800, memory.read(0x0))
+        self.assertEquals(0x7400, memory.read(0x1))
+        self.assertEquals(0x7200, memory.read(0x2))
+        self.assertEquals(0x7100, memory.read(0x3))
+        self.assertEquals(0x7080, memory.read(0x4))
+        self.assertEquals(0x7040, memory.read(0x5))
+        self.assertEquals(0x7020, memory.read(0x6))
+        self.assertEquals(0x7010, memory.read(0x7))
+        self.assertEquals(0x7008, memory.read(0x8))
+        self.assertEquals(0x7004, memory.read(0x9))
+        self.assertEquals(0x7002, memory.read(0xA))
+        self.assertEquals(0x7001, memory.read(0xB))
 
     def test_assemble_io_commands(self):
         program = """
@@ -53,8 +54,9 @@ class TestAssembler(TestCase):
         memory = Memory(1024 * 4)
 
         assembler = Assembler(program)
-        assembler.load(memory)
+        program_start = assembler.load(memory)
 
+        self.assertEquals(0x100, program_start)
         self.assertEquals(0xF800, memory.read(0x100))
         self.assertEquals(0xF400, memory.read(0x101))
         self.assertEquals(0xF200, memory.read(0x102))
@@ -91,8 +93,9 @@ class TestAssembler(TestCase):
         memory = Memory(1024 * 4)
 
         assembler = Assembler(program)
-        assembler.load(memory)
+        program_start = assembler.load(memory)
 
+        self.assertEquals(0x100, program_start)
         self.assertEquals(0x010E, memory.read(0x100))
         self.assertEquals(0x810E, memory.read(0x101))
         self.assertEquals(0x110F, memory.read(0x102))

@@ -7,7 +7,7 @@ class TestLogger(TestCase):
         logger = Logger()
         self.assertEquals([], logger.messages)
 
-    def test_log_messages(self):
+    def test_log_messages_should_enter_a_list(self):
         logger = Logger()
         logger.log('foo')
         logger.log('bar')

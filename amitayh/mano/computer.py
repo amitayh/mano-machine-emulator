@@ -1,66 +1,7 @@
 from amitayh.mano.logger import Logger
 
 
-class Register(object):
-
-    def __init__(self, bits):
-        self.bits = bits
-        self.word = 0
-        self.max_value = 1 << self.bits
-        self.mask = self.max_value - 1
-
-    def increment(self):
-        self.word = (self.word + 1) % self.max_value
-
-    def clear(self):
-        self.word = 0
-
-    def logic_and(self, word):
-        self.word &= word
-
-    def add(self, word):
-        value = self.word + word
-        carry = value & self.max_value
-        self.word = value % self.max_value
-
-        return 1 if carry else 0
-
-    def complement(self):
-        self.word = ~self.word & self.mask
-
-    def shift_right(self, msb):
-        lsb = self.word & 1
-        self.word >>= 1
-        if msb:
-            msb_mask = self.max_value >> 1
-            self.word |= msb_mask
-
-        return lsb
-
-    def shift_left(self, lsb):
-        msb_mask = self.max_value >> 1
-        msb = 1 if self.word & msb_mask else 0
-        self.word = (self.word << 1) & self.mask
-        if lsb:
-            self.word |= 1
-
-        return msb
-
-
-class Memory(object):
-
-    def __init__(self, size):
-        self.data = [None] * size
-
-    def write(self, address, word):
-        self.data[address] = word
-
-    def read(self, address):
-        return self.data[address]
-
-
 class Computer(object):
-
     def __init__(self):
         self.ram = Memory(1024 * 4)     # 4K RAM
         self.ar = Register(12)          # Address register
@@ -69,9 +10,15 @@ class Computer(object):
         self.ac = Register(16)          # Accumulator
         self.ir = Register(16)          # Instruction register
         self.tr = Register(16)          # Temp register
+        self.inpr = Register(8)         # Input register
+        self.outr = Register(8)         # Output register
         self.sc = Register(3)           # Sequence counter
         self.e = Register(1)            # Carry bit
         self.s = Register(1)            # Start / stop computer
+        self.r = Register(1)            # Interrupt raised
+        self.ien = Register(1)          # Interrupt enable
+        self.fgi = Register(1)          # Input register available
+        self.fgo = Register(1)          # Output register available
         self.logger = Logger()          # Default simple logger
 
     def run(self, program_start):
@@ -82,22 +29,23 @@ class Computer(object):
 
     def tick(self):
         t = self.sc.word
+        r = self.r.word
         d = (self.ir.word >> 12) & 7    # IR(12-14)
         i = (self.ir.word >> 15) & 1    # IR(15)
 
         # Instruction fetch
-        if t == 0:
+        if t == 0 and r == 0:
             self.logger.log("R'T0: AR <- PC")
             self.ar.word = self.pc.word
             self.sc.increment()
-        if t == 1:
+        if t == 1 and r == 0:
             self.logger.log("R'T1: IR <- M[AR], PC <- PC + 1")
             self.ir.word = self.memory_read()
             self.pc.increment()
             self.sc.increment()
 
         # Instruction decode
-        if t == 2:
+        if t == 2 and r == 0:
             self.logger.log("R'T2: AR <- IR(0-11)")
             self.ar.word = self.ir.word & 0xFFF
             self.sc.increment()
@@ -114,8 +62,10 @@ class Computer(object):
         # Execute
         if t > 3 and d != 7:
             self.execute_mri(d, t)
-        if t == 3 and d == 7 and i == 0:
+        elif t == 3 and d == 7 and i == 0:
             self.execute_rri(self.ir.word)
+        elif t == 3 and d == 7 and i == 1:
+            self.execute_io(self.ir.word)
 
     def execute_mri(self, d, t):
         # AND
@@ -123,64 +73,64 @@ class Computer(object):
             self.logger.log("D0T4: DR <- M[AR]")
             self.dr.word = self.memory_read()
             self.sc.increment()
-        if d == 0 and t == 5:
+        elif d == 0 and t == 5:
             self.logger.log("D0T5: AC <- AC & DR, SC <- 0")
             self.ac.logic_and(self.dr.word)
             self.sc.clear()
 
         # ADD
-        if d == 1 and t == 4:
+        elif d == 1 and t == 4:
             self.logger.log("D1T4: DR <- M[AR]")
             self.dr.word = self.memory_read()
             self.sc.increment()
-        if d == 1 and t == 5:
+        elif d == 1 and t == 5:
             self.logger.log("D1T5: AC <- AC + DR, E <- Cout, SC <- 0")
             self.e.word = self.ac.add(self.dr.word)
             self.sc.clear()
 
         # LDA
-        if d == 2 and t == 4:
+        elif d == 2 and t == 4:
             self.logger.log("D2T4: DR <- M[AR]")
             self.dr.word = self.memory_read()
             self.sc.increment()
-        if d == 2 and t == 5:
+        elif d == 2 and t == 5:
             self.logger.log("D2T4: AC <- DR, SC <- 0")
             self.ac.word = self.dr.word
             self.sc.clear()
 
         # STA
-        if d == 3 and t == 4:
+        elif d == 3 and t == 4:
             self.logger.log("D3T4: M[AR] <- AC, SC <- 0")
             self.memory_write(self.ac)
             self.sc.clear()
 
         # BUN
-        if d == 4 and t == 4:
+        elif d == 4 and t == 4:
             self.logger.log("D4T4: PC <- AR, SC <- 0")
             self.pc.word = self.ar.word
             self.sc.clear()
 
         # BSA
-        if d == 5 and t == 4:
+        elif d == 5 and t == 4:
             self.logger.log("D5T4: M[AR] <- PC, AR <- AR + 1")
             self.memory_write(self.pc)
             self.ar.increment()
             self.sc.increment()
-        if d == 5 and t == 5:
+        elif d == 5 and t == 5:
             self.logger.log("D5T5: PC <- AR, SC <- 0")
             self.pc.word = self.ar.word
             self.sc.clear()
 
         # ISZ
-        if d == 6 and t == 4:
+        elif d == 6 and t == 4:
             self.logger.log("D6T4: DR <- M[AR]")
             self.dr.word = self.memory_read()
             self.sc.increment()
-        if d == 6 and t == 5:
+        elif d == 6 and t == 5:
             self.logger.log("D6T5: DR <- DR + 1")
             self.dr.increment()
             self.sc.increment()
-        if d == 6 and t == 6:
+        elif d == 6 and t == 6:
             self.logger.log("D6T6: M[AR] <- DR, if (DR = 0) then (PC <- PC + 1), SC <- 0")
             self.memory_write(self.dr)
             if self.dr.word == 0:
@@ -254,8 +204,102 @@ class Computer(object):
 
         self.sc.clear()
 
+    def execute_io(self, instruction):
+        # INP
+        if instruction & 0x800:
+            self.logger.log("D7IT3B11: AC(0-7) <- INPR, FGI <- 0")
+            self.ac.word &= 0xFF00
+            self.ac.word |= self.inpr.word
+            self.fgi.clear()
+
+        # OUT
+        elif instruction & 0x400:
+            self.logger.log("D7IT3B10: OUTR <- AC(0-7), FGO <- 0")
+            self.outr.word = self.ac.word & 0xFF
+            self.fgo.clear()
+
+        # SKI
+        elif instruction & 0x200:
+            self.logger.log("D7IT3B9: if (FGI = 1) then (PC <- PC + 1)")
+            if self.fgi.word == 1:
+                self.pc.increment()
+
+        # SKO
+        elif instruction & 0x100:
+            self.logger.log("D7IT3B8: if (FGO = 1) then (PC <- PC + 1)")
+            if self.fgo.word == 1:
+                self.pc.increment()
+
+        # ION
+        elif instruction & 0x080:
+            self.logger.log("D7IT3B7: IEN <- 1")
+            self.ien.word = 1
+
+        # IOF
+        elif instruction & 0x040:
+            self.logger.log("D7IT3B6: IEN <- 0")
+            self.ien.clear()
+
+        self.sc.clear()
+
     def memory_read(self):
         return self.ram.read(self.ar.word)
 
     def memory_write(self, register):
         self.ram.write(self.ar.word, register.word)
+
+
+class Register(object):
+    def __init__(self, bits):
+        self.bits = bits
+        self.word = 0
+        self.max_value = 1 << self.bits
+        self.mask = self.max_value - 1
+
+    def increment(self):
+        self.word = (self.word + 1) % self.max_value
+
+    def clear(self):
+        self.word = 0
+
+    def logic_and(self, word):
+        self.word &= word
+
+    def add(self, word):
+        value = self.word + word
+        carry = value & self.max_value
+        self.word = value % self.max_value
+
+        return 1 if carry else 0
+
+    def complement(self):
+        self.word = ~self.word & self.mask
+
+    def shift_right(self, msb):
+        lsb = self.word & 1
+        self.word >>= 1
+        if msb:
+            msb_mask = self.max_value >> 1
+            self.word |= msb_mask
+
+        return lsb
+
+    def shift_left(self, lsb):
+        msb_mask = self.max_value >> 1
+        msb = 1 if self.word & msb_mask else 0
+        self.word = (self.word << 1) & self.mask
+        if lsb:
+            self.word |= 1
+
+        return msb
+
+
+class Memory(object):
+    def __init__(self, size):
+        self.data = [None] * size
+
+    def write(self, address, word):
+        self.data[address] = word
+
+    def read(self, address):
+        return self.data[address]

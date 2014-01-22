@@ -3,6 +3,112 @@ from amitayh.mano.assembler import Assembler
 from amitayh.mano.computer import Register, Memory, Computer
 
 
+class TestComputer(TestCase):
+    def test_simple_program(self):
+        computer = Computer()
+
+        program = """
+            ORG 100
+            CLA
+            INC
+            HLT
+            END
+        """
+        assembler = Assembler(program)
+        program_start = assembler.load(computer.ram)
+
+        computer.run(program_start)
+
+        self.assertEquals(1, computer.ac.word)
+
+    def test_add_two_numbers(self):
+        computer = Computer()
+
+        program = """
+                 ORG 100
+                 LDA AAA
+                 ADD BBB
+                 STA CCC
+                 HLT
+            AAA, DEC 83
+            BBB, DEC -23
+            CCC, HEX 0
+                 END
+        """
+        assembler = Assembler(program)
+        program_start = assembler.load(computer.ram)
+
+        computer.run(program_start)
+
+        self.assertEquals(60, computer.ram.read(0x106))
+
+    def test_subtract_two_numbers(self):
+        computer = Computer()
+
+        program = """
+                 ORG 100
+                 LDA BBB
+                 CMA
+                 INC
+                 ADD AAA
+                 STA CCC
+                 HLT
+            AAA, DEC 83
+            BBB, DEC -23
+            CCC, HEX 0
+                 END
+        """
+        assembler = Assembler(program)
+        program_start = assembler.load(computer.ram)
+
+        computer.run(program_start)
+
+        self.assertEquals(106, computer.ram.read(0x108))
+
+    def test_add_16_numbers(self):
+        computer = Computer()
+
+        program = """
+                 ORG 100
+                 CLA
+            LOP, ADD PTR I
+                 ISZ PTR
+                 ISZ CNT
+                 BUN LOP
+                 STA SUM
+                 HLT
+            SUM, HEX 0
+            PTR, HEX 200
+            CNT, DEC -16
+
+                 ORG 200
+                 HEX 10
+                 HEX 20
+                 HEX 30
+                 HEX 40
+                 HEX 50
+                 HEX 60
+                 HEX 70
+                 HEX 80
+                 HEX 90
+                 HEX A0
+                 HEX B0
+                 HEX C0
+                 HEX D0
+                 HEX E0
+                 HEX F0
+                 HEX 100
+                 END
+        """
+        assembler = Assembler(program)
+        program_start = assembler.load(computer.ram)
+
+        computer.run(program_start)
+
+        # 0x10 + 0x20 + ... + 0x100 = 0x880
+        self.assertEquals(0x880, computer.ram.read(0x107))
+
+
 class TestRegister(TestCase):
     def test_increment(self):
         register = Register(3)
@@ -81,107 +187,3 @@ class TestMemory(TestCase):
         self.assertEquals(0x000A, memory.read(0x000))
         self.assertEquals(0x000B, memory.read(0x001))
         self.assertEquals(0x000C, memory.read(0x002))
-
-
-class TestComputer(TestCase):
-    def test_simple_program(self):
-        computer = Computer()
-
-        program = """
-            ORG 100
-            CLA
-            INC
-            HLT
-            END
-        """
-        assembler = Assembler(program)
-        assembler.load(computer.ram)
-
-        computer.run(0x100)
-
-        self.assertEquals(1, computer.ac.word)
-
-    def test_add_two_numbers(self):
-        computer = Computer()
-
-        program = """
-                 ORG 100
-                 LDA AAA
-                 ADD BBB
-                 STA CCC
-                 HLT
-            AAA, DEC 83
-            BBB, DEC -23
-            CCC, HEX 0
-                 END
-        """
-        assembler = Assembler(program)
-        assembler.load(computer.ram)
-
-        computer.run(0x100)
-
-        self.assertEquals(60, computer.ram.read(0x106))
-
-    def test_subtract_two_numbers(self):
-        computer = Computer()
-
-        program = """
-                 ORG 100
-                 LDA BBB
-                 CMA
-                 INC
-                 ADD AAA
-                 STA CCC
-                 HLT
-            AAA, DEC 83
-            BBB, DEC -23
-            CCC, HEX 0
-                 END
-        """
-        assembler = Assembler(program)
-        assembler.load(computer.ram)
-
-        computer.run(0x100)
-
-        self.assertEquals(106, computer.ram.read(0x108))
-
-    def test_add_16_numbers(self):
-        computer = Computer()
-
-        program = """
-                 ORG 100
-                 CLA
-            LOP, ADD PTR I
-                 ISZ PTR
-                 ISZ CNT
-                 BUN LOP
-                 STA SUM
-                 HLT
-            SUM, HEX 0
-            PTR, HEX 10A
-            CNT, DEC -16
-                 HEX 10
-                 HEX 20
-                 HEX 30
-                 HEX 40
-                 HEX 50
-                 HEX 60
-                 HEX 70
-                 HEX 80
-                 HEX 90
-                 HEX A0
-                 HEX B0
-                 HEX C0
-                 HEX D0
-                 HEX E0
-                 HEX F0
-                 HEX 100
-                 END
-        """
-        assembler = Assembler(program)
-        assembler.load(computer.ram)
-
-        computer.run(0x100)
-
-        # 0x10 + 0x20 + ... + 0x100 = 0x880
-        self.assertEquals(0x880, computer.ram.read(0x107))
