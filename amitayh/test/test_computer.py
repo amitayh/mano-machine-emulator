@@ -144,3 +144,44 @@ class TestComputer(TestCase):
         computer.run(0x100)
 
         self.assertEquals(106, computer.ram.read(0x108))
+
+    def test_add_16_numbers(self):
+        computer = Computer()
+
+        program = """
+                 ORG 100
+                 CLA
+            LOP, ADD PTR I
+                 ISZ PTR
+                 ISZ CNT
+                 BUN LOP
+                 STA SUM
+                 HLT
+            SUM, HEX 0
+            PTR, HEX 10A
+            CNT, DEC -16
+                 HEX 10
+                 HEX 20
+                 HEX 30
+                 HEX 40
+                 HEX 50
+                 HEX 60
+                 HEX 70
+                 HEX 80
+                 HEX 90
+                 HEX A0
+                 HEX B0
+                 HEX C0
+                 HEX D0
+                 HEX E0
+                 HEX F0
+                 HEX 100
+                 END
+        """
+        assembler = Assembler(program)
+        assembler.load(computer.ram)
+
+        computer.run(0x100)
+
+        # 0x10 + 0x20 + ... + 0x100 = 0x880
+        self.assertEquals(0x880, computer.ram.read(0x107))
