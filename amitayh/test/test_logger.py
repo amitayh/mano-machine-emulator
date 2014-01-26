@@ -17,3 +17,12 @@ class TestLogger(TestCase):
         self.logger.log('bar')
         self.logger.log('baz')
         self.assertEquals(['foo', 'bar', 'baz'], self.logger.messages)
+
+    def test_string_representation(self):
+        self.assertEquals('Logger()', str(self.logger))
+
+        self.logger.log('foo')
+        self.assertEquals('Logger(last_message="foo")', str(self.logger))
+
+        self.logger.log('bar')
+        self.assertEquals('Logger(last_message="bar")', str(self.logger))

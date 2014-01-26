@@ -4,3 +4,9 @@ class Logger(object):
 
     def log(self, message):
         self.messages.append(message)
+
+    def __str__(self):
+        if self.messages:
+            return 'Logger(last_message="%s")' % self.messages[-1]
+
+        return 'Logger()'

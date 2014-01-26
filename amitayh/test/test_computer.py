@@ -146,6 +146,7 @@ class TestComputer(TestCase):
 
         return computer
 
+
 class TestRegister(TestCase):
     def setUp(self):
         self.register = Register(3)
@@ -201,6 +202,17 @@ class TestRegister(TestCase):
         self.assertEquals(1, msb)
         self.assertEquals(5, self.register.word)
 
+    def test_string_representation(self):
+        self.assertEquals('Register(word=101)', str(self.register))
+
+        register2 = Register(8)
+        register2.word = 0xD
+        self.assertEquals('Register(word=00001101)', str(register2))
+
+        register3 = Register(8)
+        register3.word = 0xF3
+        self.assertEquals('Register(word=11110011)', str(register3))
+
 
 class TestMemory(TestCase):
     def setUp(self):
@@ -216,3 +228,6 @@ class TestMemory(TestCase):
         self.assertEquals(0x000A, self.memory.read(0x000))
         self.assertEquals(0x000B, self.memory.read(0x001))
         self.assertEquals(0x000C, self.memory.read(0x002))
+
+    def test_string_representation(self):
+        self.assertEquals('Memory(size=4K)', str(self.memory))
